@@ -1,0 +1,15 @@
+{
+  "info": {
+    "CompanyName": "Excel Tools",
+    "FileDescription": "Excel 空行去除工具",
+    "FileVersion": "1.0.0.0",
+    "InternalName": "empty-row-remover",
+    "LegalCopyright": "Copyright (C) 2024",
+    "OriginalFilename": "empty-row-remover.exe",
+    "ProductName": "空行去除工具",
+    "ProductVersion": "1.0.0.0"
+  },
+  "icon": {
+    "icon.ico": {}
+  }
+}
