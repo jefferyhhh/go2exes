@@ -9,7 +9,10 @@ import (
 	"strings"
 )
 
-var workDir string
+var (
+	workDir string
+	toolDir string
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -31,7 +34,7 @@ func main() {
 		return
 	}
 
-	toolDir := filepath.Join(workDir, "tools", toolName)
+	toolDir = filepath.Join(workDir, "tools", toolName)
 	if _, err := os.Stat(toolDir); !os.IsNotExist(err) {
 		fmt.Printf("错误: 工具 %s 已存在\n", toolName)
 		return
@@ -42,7 +45,6 @@ func main() {
 	fmt.Printf("创建工具: %s\n", toolName)
 
 	os.MkdirAll(toolDir, 0755)
-	os.MkdirAll(filepath.Join(workDir, "winres"), 0755)
 
 	// 生成最小 go.mod，依赖由 go mod tidy 补全
 	goMod := fmt.Sprintf("module github.com/yourname/go2exes/tools/%s\n\ngo %s\n", toolName, goVersion)
@@ -56,6 +58,7 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+	"path/filepath"
 )
 
 var (
@@ -137,13 +140,13 @@ func main() {
     }
   }
 }`, toolDesc, toolName, toolName, toolDesc)
-	winresJsonPath := filepath.Join(workDir, "winres", "winres.json")
+	winresJsonPath := filepath.Join(toolDir, "winres.json")
 	os.WriteFile(winresJsonPath, []byte(winresJson), 0644)
 
 	sysoCmd := exec.Command("go", "run", "github.com/tc-hib/go-winres@latest", "make",
 		"--in", winresJsonPath,
 		"--out", filepath.Join(toolDir, "rsrc"))
-	sysoCmd.Dir = workDir
+	sysoCmd.Dir = toolDir
 	sysoCmd.Env = append(os.Environ(), "GOPROXY=https://goproxy.cn,direct")
 	sysoCmd.Stdout = os.Stdout
 	sysoCmd.Stderr = os.Stderr
@@ -183,7 +186,10 @@ func parseGoVersion() string {
 }
 
 func genIcon() {
-	iconPath := filepath.Join(workDir, "winres", "icon.png")
+	iconPath := filepath.Join(toolDir, "icon.png")
+	// Windows 路径中的反斜杠在 Go 源码字符串中会被当作转义序列，
+	// 必须转为正斜杠才能正确传递给 os.Create
+	iconPath = strings.ReplaceAll(iconPath, `\`, `/`)
 
 	iconCode := `package main
 
@@ -217,7 +223,11 @@ func main() {
 
 	cmd := exec.Command("go", "run", tmpFile)
 	cmd.Dir = workDir
-	cmd.Run()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("生成图标失败: %v\n", err)
+	}
 }
 
 func updateGoWork(toolName string) {
