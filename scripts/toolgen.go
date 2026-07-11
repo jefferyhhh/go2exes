@@ -126,11 +126,11 @@ func main() {
         },
         "info": {
           "0804": {
-            "CompanyName": "Excel Tools",
+            "CompanyName": "Your Company",
             "FileDescription": "%s",
             "FileVersion": "1.0.0.0",
             "InternalName": "%s",
-            "LegalCopyright": "Copyright (C) 2024",
+            "LegalCopyright": "Copyright (C) 2026",
             "OriginalFilename": "%s.exe",
             "ProductName": "%s",
             "ProductVersion": "1.0.0.0"
