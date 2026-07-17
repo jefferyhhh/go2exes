@@ -56,39 +56,13 @@ func main() {
 import (
 	"fmt"
 	"os"
-	"syscall"
-	"unsafe"
 	"path/filepath"
-)
 
-var (
-	user32         = syscall.NewLazyDLL("user32.dll")
-	procMessageBox = user32.NewProc("MessageBoxW")
-)
-
-const (
-	MB_OK              = 0x00000000
-	MB_ICONINFORMATION = 0x00000040
-	MB_TOPMOST         = 0x00040000
+	"github.com/yourname/go2exes/shared/winuser"
 )
 
 func showMsg(msg string, isError bool) {
-	title, _ := syscall.UTF16PtrFromString("%s")
-	text, _ := syscall.UTF16PtrFromString(msg)
-
-	flags := uintptr(MB_OK | MB_TOPMOST)
-	if isError {
-		flags |= 0x00000010 // MB_ICONERROR
-	} else {
-		flags |= MB_ICONINFORMATION
-	}
-
-	procMessageBox.Call(
-		0,
-		uintptr(unsafe.Pointer(text)),
-		uintptr(unsafe.Pointer(title)),
-		flags,
-	)
+	winuser.ShowMessage("%s", msg, isError)
 }
 
 func main() {
@@ -109,7 +83,7 @@ func main() {
 `, toolDesc)
 	os.WriteFile(filepath.Join(toolDir, "main.go"), []byte(mainGo), 0644)
 
-	genIcon()
+	copyDefaultIcon()
 
 	winresJson := fmt.Sprintf(`{
   "RT_GROUP_ICON": {
@@ -185,48 +159,23 @@ func parseGoVersion() string {
 	return "1.22"
 }
 
-func genIcon() {
-	iconPath := filepath.Join(toolDir, "icon.png")
-	// Windows 路径中的反斜杠在 Go 源码字符串中会被当作转义序列，
-	// 必须转为正斜杠才能正确传递给 os.Create
-	iconPath = strings.ReplaceAll(iconPath, `\`, `/`)
+// copyDefaultIcon 复制默认图标到工具目录
+func copyDefaultIcon() {
+	src := filepath.Join(workDir, "shared", "assets", "default-icon.png")
+	dst := filepath.Join(toolDir, "icon.png")
 
-	iconCode := `package main
-
-import (
-	"image"
-	"image/color"
-	"image/png"
-	"os"
-)
-
-func main() {
-	img := image.NewRGBA(image.Rect(0, 0, 32, 32))
-	for y := 0; y < 32; y++ {
-		for x := 0; x < 32; x++ {
-			if x >= 4 && x < 28 && y >= 4 && y < 28 {
-				img.Set(x, y, color.RGBA{G: 0xA6, R: 0x3B, B: 0x4C, A: 255})
-			} else {
-				img.Set(x, y, color.RGBA{G: 0x7D, R: 0x1A, B: 0x2D, A: 255})
-			}
-		}
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		fmt.Printf("警告: 未找到默认图标 %s，跳过图标复制\n", src)
+		return
 	}
-	f, _ := os.Create("` + iconPath + `")
-	defer f.Close()
-	png.Encode(f, img)
-}
-`
 
-	tmpFile := filepath.Join(workDir, "gen_icon_temp.go")
-	os.WriteFile(tmpFile, []byte(iconCode), 0644)
-	defer os.Remove(tmpFile)
-
-	cmd := exec.Command("go", "run", tmpFile)
-	cmd.Dir = workDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("生成图标失败: %v\n", err)
+	data, err := os.ReadFile(src)
+	if err != nil {
+		fmt.Printf("读取图标失败: %v\n", err)
+		return
+	}
+	if err := os.WriteFile(dst, data, 0644); err != nil {
+		fmt.Printf("复制图标失败: %v\n", err)
 	}
 }
 
